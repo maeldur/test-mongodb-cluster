@@ -2,6 +2,7 @@ var async = require('async');
 var cp = require('child_process');
 var mkdirp = require('mkdirp');
 var mongodb = require('mongodb');
+var optimist = require('optimist');
 var path = require('path');
 
 var MongoClient = require('mongodb').MongoClient;
@@ -92,10 +93,7 @@ MongoServer.prototype.createDirectories = function(callback) {
 
 function checkRequirements() {
   try {
-    require('optimist');
-    cp.exec('which mongod', function(err, stdout, stderr) {
-      console.log('Using: ' + stdout);
-    });
+    // TODO: check if mongod is installed, etc
   } catch (e) {
     return false;
   }
@@ -142,6 +140,10 @@ function processOptions(argv) {
   if (argv.dataDir) {
     options.dataDir = path.resolve(argv.dataDir);
   }
+  if (argv.logDir) {
+    options.logDir = path.resolve(argv.logDir);
+  }
+
 
   return options;
 }
@@ -442,7 +444,35 @@ function main() {
     console.log('cannot continue, requirements not met.');
     return;
   }
-  var options = processOptions(require('optimist').argv);
+
+  optimist.usage('MongoDB Development Cluster')
+    .describe('help', 'show this message')
+    .boolean('help')
+    .describe('port', 'port to connect to mongod/replica set/mongos')
+    .describe('dataDir', 'Root Data Directory')
+    .describe('logDir', 'Root Log Directory')
+    .default('dataDir', path.resolve('./data'))
+    .default('logDir', path.resolve('./logs'))
+    .boolean('sharded')
+    .default('sharded', false)
+    .describe('sharded', 'Sharded Cluster (starts mongos on port)')
+    .describe('shardCount', 'Number of shards in cluster (if sharded)')
+    .default('shardCount', 1)
+    .describe('configServerCount', 'Number of config servers (if sharded)')
+    .default('configServerCount', 1)
+    .boolean('replicated')
+    .default('replicated', false)
+    .describe('replicated', 'Start standalone replica set (per shard if --sharded)')
+    .describe('replMemberCount', 'Number of mongod instance in replica set (Up to 7)')
+    .default('replMemberCount', 3)
+    .describe('replSetName', 'Replica set name or prefix for sharded replicated configuration')
+    .default('replSetName', 'test');
+
+  if (optimist.argv.help) {
+    optimist.showHelp();
+    return;
+  }
+  var options = processOptions(optimist.argv);
   start(options);
 }
 
